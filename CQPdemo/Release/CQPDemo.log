@@ -3,7 +3,7 @@
 e:\workplace\cc.yuukisama.cqtest\cqpdemo\qq2word.h(7): warning C4018: “<”: 有符号/无符号不匹配
     正在创建库 E:\workplace\cc.yuukisama.CQtest\Release\cc.yuukisama.CQtest.lib 和对象 E:\workplace\cc.yuukisama.CQtest\Release\cc.yuukisama.CQtest.exp
   正在生成代码
-e:\workplace\cc.yuukisama.cqtest\cqpdemo\appmain.cpp(671): warning C4715: “__eventGroupMsg”: 不是所有的控件路径都返回值
+e:\workplace\cc.yuukisama.cqtest\cqpdemo\appmain.cpp(672): warning C4715: “__eventGroupMsg”: 不是所有的控件路径都返回值
   1 of 803 functions ( 0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
     0 functions had inline decision re-evaluated but remain unchanged

@@ -453,11 +453,12 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			temp = string(msg);
 			temp = temp.substr(3);
 			//CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+			CQ_sendGroupMsg(ac, fromGroup, "链接二维码将通过私聊发送给您o(*￣▽￣*)o");
 
 			ret = true;
 			for (map<string, string>::iterator iter = filmlist.begin(); iter != filmlist.end(); iter++) {
 				if (iter->first.find(temp) != string::npos) {
-					CQ_sendPrivateMsg(ac, fromGroup, iter->second.c_str());
+					CQ_sendPrivateMsg(ac, fromQQ, iter->second.c_str());
 					return EVENT_BLOCK;
 				}
 				//CQ_sendGroupMsg(ac, fromGroup, iter->first.c_str());
@@ -491,7 +492,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
 			QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
 			temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 
 			break;
 		case '2':
@@ -538,7 +539,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				return EVENT_BLOCK;
 			}
 
-			CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接");
+			CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接,链接二维码将通过私聊二维码发送");
 
 
 
@@ -571,7 +572,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				temp = url_base + qq2word(fromQQ);
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
 				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-				CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 			}
 			break;
 			/*case '3':
@@ -628,7 +629,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 		}
 
 
-		CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接");
+		CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接,链接二维码将通过私聊二维码发送");
 
 		temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome None";
 		size = temp.length();
@@ -659,11 +660,11 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			temp = url_base + qq2word(fromQQ);
 			QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
 			temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 			Sleep(1000);
-			CQ_sendGroupMsg(ac, fromGroup, "如果您需要将pdf转换成其他格式可以访问如下网站");
+			CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
 			temp = "[CQ:image,file=PDFconvery.jpg]";
-			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 
 		}
 
