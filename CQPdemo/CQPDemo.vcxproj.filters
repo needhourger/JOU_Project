@@ -27,13 +27,19 @@
     <ClInclude Include="appmain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="qq2word.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="UTF82GBK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="qrencode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sql.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sqlite\sqlite3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="static_msg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -45,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="appmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sqlite\sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

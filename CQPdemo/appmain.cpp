@@ -8,11 +8,11 @@
 #include "string"
 #include "cqp.h"
 #include "appmain.h" //应用AppID等信息，请正确填写，否则酷Q可能无法加载
-#include "qq2word.h"
-#include "UTF82GBK.h"
+#include "libs.h"
 #include "qrencode.h"
+#include "sql.h"
+#include "static_msg.h"
 
-#include <Windows.h>
 #include <shellapi.h>
 #include <tchar.h>
 #include <fstream>
@@ -20,15 +20,18 @@
 #include <map>
 #pragma comment(lib,"qrencode.lib")
 
+
 using namespace std;
+using namespace sql;
 
 int ac = -1; //AuthCode 调用酷Q的方法时需要用到
 bool enabled = false;
-string SAVE_PATH;
-string url_base;
-string suffix;
+std::string SAVE_PATH;
+std::string url_base;
+std::string suffix;
 
-map<string, string> filmlist;
+map<std::string, std::string> filmlist;
+vector<std::string> keywords;
 
 /* 
 * 返回应用的ApiVer、Appid，打包后将不会调用
@@ -92,6 +95,11 @@ CQEVENT(int32_t, __eventExit, 0)() {
 CQEVENT(int32_t, __eventEnable, 0)() {
 	enabled = true;
     filmlist.clear();
+	
+	sql::User_table_init();
+	sql::Notice_table_init();
+	sql::Groups_init();
+	sql::language_init();
 
     fstream csv(".\\film.csv", ios::in);
     if (!csv.is_open()) {
@@ -99,14 +107,14 @@ CQEVENT(int32_t, __eventEnable, 0)() {
         return 0;
     }
 
-    string line;
-    string film, link;
+    std::string line;
+    std::string film, link;
     getline(csv, line);
     while (getline(csv, line)) {
-        stringstream ss(line);
+        std::stringstream ss(line);
         getline(ss, film, ',');
         getline(ss, link, ',');
-        filmlist.insert(pair<string, string>(film, link));
+        filmlist.insert(pair<std::string, std::string>(film, link));
     }
     csv.close();
 
@@ -116,12 +124,12 @@ CQEVENT(int32_t, __eventEnable, 0)() {
         setting.close();
         return 0;
     }
-    /*getline(setting, SAVE_PATH);
+    getline(setting, SAVE_PATH);
     getline(setting, url_base);
-    getline(setting, suffix);*/
-    setting >> SAVE_PATH;
-    setting >> url_base;
-    setting >> suffix;
+    getline(setting, suffix);
+    //setting >> SAVE_PATH;
+    //setting >> url_base;
+    //setting >> suffix;
     setting.close();
 	return 0;
 }
@@ -144,428 +152,200 @@ CQEVENT(int32_t, __eventDisable, 0)() {
 */
 CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t fromQQ, const char *msg, int32_t font) {
 
-    string temp;
-    string filename;
-    char url[1024];
-    
-
-    size_t size;
-    wchar_t *buffer=NULL;
-
-    BOOL ret;
-    SHELLEXECUTEINFO shellinfo;
-
-    ifstream f;
-
+    std::string temp;
+    std::string filename;
+  
     QRcode *code=nullptr;
-    int pos;
+    long pos;
+	vector<std::string> strs;
 
-	if (msg[0] == '#') {
-        switch (msg[1]) {
-        case '0':
-            Sleep(500);
-            CQ_sendPrivateMsg(ac, fromQQ,
-                "帮助信息\n"
-                "#0				---显示本帮助\n"
-                "百度文库链接	---下载百度文库文档\n"
-                "   列如：htt[CQ:face,id=14]ps://wenku[CQ:face,id=14].baidu.com/view/604e0b7b1711cc7931b7165f.html\n"
-                "   电脑端直接复制需要下载的百度文库网址粘贴到qq发送\n"
-                "   手机端按右上角的分享选择复制链接后粘贴到qq中发送\n\n"
-                "#1+空格+电影名	---获得电影资源下载地址\n"
-                "   列如：#1 白雪公主\n\n"
-                "#2+空格+音乐名称	---下载高质量音乐\n"
-                "   列如：#2 爱我中华\n"
-                "本软件所转载的音视频等资料均为网络三方资源。"
-            );
-			return EVENT_BLOCK;
+	if (!sql::ban_check(fromQQ)) {
+		if (msg[0] == '#') {
+			switch (msg[1]) {
+			case '0':
+				Sleep(500);
+				CQ_sendPrivateMsg(ac, fromQQ, help_msg);
+				return EVENT_BLOCK;
 
-		case '1':
-            Sleep(500);
-            if (strlen(msg) <= 3) break;
-            temp = string(msg);
-            temp = temp.substr(3);
-            //CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+			case '1':
+				Sleep(500);
+				if (strlen(msg) <= 3) break;
+				temp = std::string(msg);
+				temp = temp.substr(3,std::string::npos);
+				
+				for (map<std::string, std::string>::iterator iter = filmlist.begin(); iter != filmlist.end(); iter++) {
+					if (iter->first.find(temp) != std::string::npos) {
+						CQ_sendPrivateMsg(ac, fromQQ, iter->second.c_str());
+						return EVENT_BLOCK;
+					}
+				}
 
-            ret = true;
-            for (map<string, string>::iterator iter = filmlist.begin(); iter != filmlist.end(); iter++) {
-                if (iter->first.find(temp) != string::npos) {
-                    CQ_sendPrivateMsg(ac, fromQQ, iter->second.c_str());
-                    return EVENT_BLOCK;
-                }   
-                //CQ_sendPrivateMsg(ac, fromQQ, iter->first.c_str());
-            }
-            /*if (ret) {
-                CQ_sendPrivateMsg(ac, fromQQ, "抱歉，未能找到相关电影");
-            }*/
-            temp = temp + " " + SAVE_PATH + "//" + qq2word(fromQQ)+" None";
-            size = temp.length();
-            buffer = new wchar_t[size + 1];
-            MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-            buffer[size] = 0;
-            //MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
+				temp = temp + " " + SAVE_PATH + "//" + qq2word(fromQQ);
+				CQtestlibExec(temp,"movie.exe");
 
-            ZeroMemory(&shellinfo, sizeof(shellinfo));
-            shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-            shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-            shellinfo.hwnd = GetDesktopWindow();
-            shellinfo.lpVerb = _T("open");
-            shellinfo.lpFile = _T("movie.exe");
-            shellinfo.lpParameters = buffer;
-            shellinfo.lpDirectory = _T(".\\downloader");
-            shellinfo.nShow = SW_HIDE;
-            shellinfo.hInstApp = NULL;
+				temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
+				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 
-            ret = ShellExecuteEx(&shellinfo);
-            WaitForSingleObject(shellinfo.hProcess, INFINITE);
-            delete buffer;
+				return EVENT_BLOCK;
+			case '2':
+				if (strlen(msg) <= 3) break;
+				CQ_sendPrivateMsg(ac, fromQQ, music_msg);
 
-
-            temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
-            QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-            temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-            CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-
-			break;
-		case '2':
-            if (strlen(msg) <= 3) break;
-			CQ_sendPrivateMsg(ac, fromQQ, 
-                "欢迎使用高品质MP3下载功能,注意:\n"
-                "1.不能保证所有音乐均为最高品质\n"
-                "2.不能保证100%下载成功,如果下载失败请重试,或者过段时间再试(或者放弃吐舌~)\n"
-                "3.下载的资源仅供学习使用,请在下载完成后24h内删除\n"
-                "正在下载,请稍等..."
-            );
-
-            temp = string(msg);
-            memset(url, 0, sizeof(url));
-            temp.copy(url, temp.length() - 3, 3);
-            temp = "\""+string(url)+"\"";
-            temp = temp + " " + SAVE_PATH + "/" + qq2word(fromQQ)+" \""+suffix+"\" None";
-
-            size = temp.length();
-            buffer = new wchar_t[size + 1];
-            MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-            buffer[size] = 0;
-            //MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
-            //delete buffer;
-
-            ZeroMemory(&shellinfo, sizeof(shellinfo));
-            shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-            shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-            shellinfo.hwnd = GetDesktopWindow();
-            shellinfo.lpVerb = _T("open");
-            shellinfo.lpFile = _T("music.exe");
-            shellinfo.lpParameters = buffer;
-            shellinfo.lpDirectory = _T(".\\downloader");
-            shellinfo.nShow = SW_HIDE;
-            shellinfo.hInstApp = NULL;
-
-            ret = ShellExecuteEx(&shellinfo);
-            WaitForSingleObject(shellinfo.hProcess, INFINITE);
-            delete buffer;
-
-            if (!ret) {
-                temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
-                CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-                return EVENT_BLOCK;
-            }
-
-            CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接");
-            
-            
-            
-            temp = SAVE_PATH + "//" + qq2word(fromQQ) +" Welcome None";
-            size = temp.length();
-            buffer = new wchar_t[size + 1];
-            MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-            buffer[size] = 0;
-
-            ZeroMemory(&shellinfo, sizeof(shellinfo));
-            shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-            shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-            shellinfo.hwnd = GetDesktopWindow();
-            shellinfo.lpVerb = _T("open");
-            shellinfo.lpFile = _T("html.exe");
-            shellinfo.lpParameters = buffer;
-            shellinfo.lpDirectory = _T(".\\downloader");
-            shellinfo.nShow = SW_HIDE;
-            shellinfo.hInstApp = NULL;
-
-            ret = ShellExecuteEx(&shellinfo);
-            WaitForSingleObject(shellinfo.hProcess, INFINITE);
-            delete buffer;
-
-            if (!ret) {
-                CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
-                return EVENT_BLOCK;
-            }
-            else {
-                temp = url_base + qq2word(fromQQ);
-                QRTextConvate(temp,  "../data/image/"+ qq2word(fromQQ));
-                temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-                CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-            }
-			break;
-        /*case '3':
-            CQ_sendPrivateMsg(ac, fromQQ, "■█");
-            break;*/
-		default:
-			CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
-			break;
-		}
-	}
-	else {
-        temp = string(msg);
-        if (!(temp.find("https://wenku.baidu.com/view/") != string::npos || temp.find("https://wk.baidu.com/view/") !=string::npos || temp.find("https://m.baidu.com/sf_edu_wenku/view/")!=string::npos)) {
-            CQ_sendPrivateMsg(ac, fromQQ, "更多功能，请回复#0查看帮助(英文井号)");
-            return EVENT_BLOCK;
-        }
-        CQ_sendPrivateMsg(ac, fromQQ,
-            "欢迎使用百度文库下载功能，注意：\n\n"
-            "1.本功能无法下载百度文库中格式为pdf的文件\n"
-            "2.本功能所下载的百度文库文档一律为pdf格式\n"
-            "3.超过300页的文件可能会下载失败\n"
-            "4.生成的下载链接有效期从下载时刻起至当日24：00"
-            "\n请稍等片刻，正在下载文档..."
-        );
-        pos = temp.find("https://");
-        temp = temp.substr(pos) + " " + SAVE_PATH + "//" + qq2word(fromQQ)+" 40 None";
-
-        size = temp.length();
-        buffer = new wchar_t[size + 1];
-        MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-        buffer[size] = 0;
-        //MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
-        //delete buffer;
-
-        ZeroMemory(&shellinfo, sizeof(shellinfo));
-        shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-        shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-        shellinfo.hwnd = GetDesktopWindow();
-        shellinfo.lpVerb = _T("open");
-        shellinfo.lpFile = _T("BDWKdownload.exe");
-        shellinfo.lpParameters = buffer;
-        shellinfo.lpDirectory = _T(".\\downloader");
-        shellinfo.nShow = SW_HIDE;
-        shellinfo.hInstApp = NULL;
-
-        ret = ShellExecuteEx(&shellinfo);
-        WaitForSingleObject(shellinfo.hProcess, INFINITE);
-        delete buffer;
-
-        if (!ret) {
-            temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
-            CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-            return EVENT_BLOCK;
-        }
-
-
-        CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接");
-
-        temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome None";
-        size = temp.length();
-        buffer = new wchar_t[size + 1];
-        MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-        buffer[size] = 0;
-
-        ZeroMemory(&shellinfo, sizeof(shellinfo));
-        shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-        shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-        shellinfo.hwnd = GetDesktopWindow();
-        shellinfo.lpVerb = _T("open");
-        shellinfo.lpFile = _T("html.exe");
-        shellinfo.lpParameters = buffer;
-        shellinfo.lpDirectory = _T(".\\downloader");
-        shellinfo.nShow = SW_HIDE;
-        shellinfo.hInstApp = NULL;
-
-        ret = ShellExecuteEx(&shellinfo);
-        WaitForSingleObject(shellinfo.hProcess, INFINITE);
-        delete buffer;
-
-        if (!ret) {
-            CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
-            return EVENT_BLOCK;
-        }
-        else {
-            temp = url_base + qq2word(fromQQ);
-            QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-            temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-            CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-            Sleep(1000);
-            CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
-            temp = "[CQ:image,file=PDFconvery.jpg]";
-            CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-
-        }
-        
-	}
-	
-	//如果要回复消息，请调用酷Q方法发送，并且这里 return EVENT_BLOCK - 截断本条消息，不再继续处理  注意：应用优先级设置为"最高"(10000)时，不得使用本返回值
-	//如果不回复消息，交由之后的应用/过滤器处理，这里 return EVENT_IGNORE - 忽略本条消息
-	//return EVENT_IGNORE;
-}
-
-
-/*
-* Type=2 群消息
-*/
-CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fromGroup, int64_t fromQQ, const char *fromAnonymous, const char *msg, int32_t font) {
-
-	string temp;
-	string filename;
-	char url[1024];
-
-
-	size_t size;
-	wchar_t *buffer = NULL;
-
-	BOOL ret;
-	SHELLEXECUTEINFO shellinfo;
-
-	ifstream f;
-
-	QRcode *code = nullptr;
-	int pos;
-
-	if (msg[0] == '#') {
-		switch (msg[1]) {
-		case '0':
-			Sleep(500);
-			CQ_sendGroupMsg(ac, fromGroup,
-				"帮助信息\n"
-				"#0				---显示本帮助\n"
-				"百度文库链接	---下载百度文库文档\n"
-				"   列如：htt[CQ:face,id=14]ps://wenku[CQ:face,id=14].baidu.com/view/604e0b7b1711cc7931b7165f.html\n"
-				"   电脑端直接复制需要下载的百度文库网址粘贴到qq发送\n"
-				"   手机端按右上角的分享选择复制链接后粘贴到qq中发送\n\n"
-				"#1+空格+电影名	---获得电影资源下载地址\n"
-				"   列如：#1 白雪公主\n\n"
-				"#2+空格+音乐名称	---下载高质量音乐\n"
-				"   列如：#2 爱我中华\n"
-				"本软件所转载的音视频等资料均为网络三方资源。"
-			);
-			return EVENT_BLOCK;
-
-		case '1':
-			Sleep(500);
-			if (strlen(msg) <= 3) break;
-			temp = string(msg);
-			temp = temp.substr(3);
-			//CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
-			CQ_sendGroupMsg(ac, fromGroup, "链接二维码将通过私聊发送给您o(*￣▽￣*)o");
-
-			ret = true;
-			for (map<string, string>::iterator iter = filmlist.begin(); iter != filmlist.end(); iter++) {
-				if (iter->first.find(temp) != string::npos) {
-					CQ_sendPrivateMsg(ac, fromQQ, iter->second.c_str());
+				temp = std::string(msg);
+				strs = split(temp);
+				temp.clear();
+				while (strs.size() > 1) {
+					temp.append(strs.back());
+					strs.pop_back();
+				}
+				strs.clear();
+				temp = temp + " " + SAVE_PATH + "/" + qq2word(fromQQ) + " \"" + suffix + "\"";
+				
+				
+				if (!CQtestlibExec(temp, "music.exe")) {
+					temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 					return EVENT_BLOCK;
 				}
-				//CQ_sendGroupMsg(ac, fromGroup, iter->first.c_str());
+				CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接");
+
+
+				temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
+				if (!CQtestlibExec(temp, "htmls.exe")) {
+					CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
+					return EVENT_BLOCK;
+				}
+				else {
+					temp = url_base + qq2word(fromQQ);
+					QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+					temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				}
+				return EVENT_BLOCK;
+
+			case '3':
+				if (strlen(msg) < 3) break;
+				CQ_sendPrivateMsg(ac, fromQQ, register_msg);
+				if (sql::register_check(fromQQ)) {
+					CQ_sendPrivateMsg(ac, fromQQ, "亲，你已经注册过了哟");
+					return EVENT_BLOCK;
+				}
+
+				temp = std::string(msg);
+				temp = temp.substr(3, temp.npos);
+				temp = "\"" + temp + "\" ";
+				temp.append(to_string(fromQQ));
+				
+				if (!CQtestlibExec(temp, "register.exe")) {
+					CQ_sendPrivateMsg(ac, fromQQ, "注册失败，请重试或者联系机器人管理员");
+					return EVENT_BLOCK;
+				}
+				else {
+					CQ_sendPrivateMsg(ac, fromQQ, register_success_msg);
+				}
+
+				return EVENT_BLOCK;
+
+			case '4':
+				if (strlen(msg) < 3) break;
+				if (!sql::register_check(fromQQ)) {
+					CQ_sendPrivateMsg(ac, fromQQ, "您尚未完成认证注册，完成认证注册之后才可以发布失物招领信息哦[CQ:emoji,id=128521]");
+					return EVENT_BLOCK;
+				}
+				if (!sql::uptime_check(fromQQ)) {
+					CQ_sendPrivateMsg(ac, fromQQ, "抱歉您今天已经发布过失物招领信息了\n每个普通用户每天只能发布一条失物招领信息哦\n请明天再来哟(＾Ｕ＾)ノ~ＹＯ");
+					return EVENT_BLOCK;
+				}
+
+				temp = string(msg);
+				strs = split(temp, " ");
+				if (strs.size() < 4) {
+					CQ_sendPrivateMsg(ac, fromQQ, "您输入的参数格式不正确，请查看#0帮助示例哟~");
+					strs.clear();
+					return EVENT_BLOCK;
+				}
+				pos = 3;
+				temp.clear();
+				while (pos < strs.size()) temp.append(strs[pos++]);
+				if (sql::Notice_upload(strs[1], strs[2],temp, fromQQ)) CQ_sendPrivateMsg(ac, fromQQ, notice_success_msg);
+				else CQ_sendPrivateMsg(ac, fromQQ, "信息录入失败，请联系机器人管理员");
+				strs.clear();
+				return EVENT_BLOCK;
+
+			case '5':
+				if (strlen(msg) < 3) break;
+
+				/*if (!sql::register_check(fromQQ)) {
+					CQ_sendPrivateMsg(ac, fromQQ, "您尚未完成认证注册，完成认证注册之后才可以获取失物招领信息哦[CQ:emoji,id=128521]");
+					return EVENT_BLOCK;
+				}*/
+
+				temp = std::string(msg);
+				strs = split(temp);
+
+				if (strs.size() < 2) {
+					CQ_sendPrivateMsg(ac, fromQQ, "您输入的命令格式不正确，请输入#0查看帮助示例");
+					strs.clear();
+					return EVENT_BLOCK;
+				}
+
+				temp = sql::Get_Notice_items(strs[1]);
+				strs.clear();
+				if (temp != "") {
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+					CQ_sendPrivateMsg(ac, fromQQ, Notice_help_msg);
+				}
+				else {
+					CQ_sendPrivateMsg(ac, fromQQ, "未查找到您输入的相关信息");
+					CQ_sendPrivateMsg(ac, fromQQ, "目前已录入的丢失物品关键词:");
+					temp = sql::Get_Notice_keywords();
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				}
+				return EVENT_BLOCK;
+			default:
+				CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
+				break;
 			}
-			/*if (ret) {
-				CQ_sendGroupMsg(ac, fromGroup, "抱歉，未能找到相关电影");
-			}*/
-			temp = temp + " " + SAVE_PATH + "//" + qq2word(fromQQ) + " None";
-			size = temp.length();
-			buffer = new wchar_t[size + 1];
-			MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-			buffer[size] = 0;
-			//MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
-
-			ZeroMemory(&shellinfo, sizeof(shellinfo));
-			shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-			shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-			shellinfo.hwnd = GetDesktopWindow();
-			shellinfo.lpVerb = _T("open");
-			shellinfo.lpFile = _T("movie.exe");
-			shellinfo.lpParameters = buffer;
-			shellinfo.lpDirectory = _T(".\\downloader");
-			shellinfo.nShow = SW_HIDE;
-			shellinfo.hInstApp = NULL;
-
-			ret = ShellExecuteEx(&shellinfo);
-			WaitForSingleObject(shellinfo.hProcess, INFINITE);
-			delete buffer;
-
-
-			temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
-			QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-			temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-
-			break;
-		case '2':
-			if (strlen(msg) <= 3) break;
-			CQ_sendGroupMsg(ac, fromGroup,
-				"欢迎使用高品质MP3下载功能,注意:\n"
-				"1.不能保证所有音乐均为最高品质\n"
-				"2.不能保证100%下载成功,如果下载失败请重试,或者过段时间再试(或者放弃吐舌~)\n"
-				"3.下载的资源仅供学习使用,请在下载完成后24h内删除\n"
-				"正在下载,请稍等..."
-			);
-
-			temp = string(msg);
-			memset(url, 0, sizeof(url));
-			temp.copy(url, temp.length() - 3, 3);
-			temp = "\"" + string(url) + "\"";
-			temp = temp + " " + SAVE_PATH + "/" + qq2word(fromQQ) + " \"" + suffix + "\" None";
-
-			size = temp.length();
-			buffer = new wchar_t[size + 1];
-			MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-			buffer[size] = 0;
-			//MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
-			//delete buffer;
-
-			ZeroMemory(&shellinfo, sizeof(shellinfo));
-			shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-			shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-			shellinfo.hwnd = GetDesktopWindow();
-			shellinfo.lpVerb = _T("open");
-			shellinfo.lpFile = _T("music.exe");
-			shellinfo.lpParameters = buffer;
-			shellinfo.lpDirectory = _T(".\\downloader");
-			shellinfo.nShow = SW_HIDE;
-			shellinfo.hInstApp = NULL;
-
-			ret = ShellExecuteEx(&shellinfo);
-			WaitForSingleObject(shellinfo.hProcess, INFINITE);
-			delete buffer;
-
-			if (!ret) {
-				temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
-				CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+		}
+		else if (msg[0] == '*') {
+			if (!sql::register_check(fromQQ)) {
+				CQ_sendPrivateMsg(ac, fromQQ, "您尚未完成认证注册，完成认证注册之后才可以使用失物招领哦[CQ:emoji,id=128521]");
 				return EVENT_BLOCK;
 			}
 
-			CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接,链接二维码将通过私聊二维码发送");
+			pos = std::strtol(msg + 1, NULL, 10);
+			if (pos == 0) return EVENT_IGNORE;
+
+			temp = "该失物招领发布者的QQ: ";
+			temp.append(sql::confirm_notice(pos));
+			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+			CQ_sendPrivateMsg(ac, fromQQ, notice_confirm_msg);
+			return EVENT_BLOCK;
+		}
+		else if (
+			std::string(msg).find("https://wenku.baidu.com/view/") != std::string::npos ||
+			std::string(msg).find("https://wk.baidu.com/view/") != std::string::npos || 
+			std::string(msg).find("https://m.baidu.com/sf_edu_wenku/view/") != std::string::npos
+		) {
+			temp = std::string(msg);
+			CQ_sendPrivateMsg(ac, fromQQ, baidu_msg);
+			pos = temp.find("https://");
+			temp = temp.substr(pos,temp.npos) + " " + SAVE_PATH + "//" + qq2word(fromQQ) + " 40";
+
+			if (!CQtestlibExec(temp, "BDWKdownload.exe")) {
+				temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				return EVENT_BLOCK;
+			}
 
 
+			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接");
 
-			temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome None";
-			size = temp.length();
-			buffer = new wchar_t[size + 1];
-			MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-			buffer[size] = 0;
-
-			ZeroMemory(&shellinfo, sizeof(shellinfo));
-			shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-			shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-			shellinfo.hwnd = GetDesktopWindow();
-			shellinfo.lpVerb = _T("open");
-			shellinfo.lpFile = _T("html.exe");
-			shellinfo.lpParameters = buffer;
-			shellinfo.lpDirectory = _T(".\\downloader");
-			shellinfo.nShow = SW_HIDE;
-			shellinfo.hInstApp = NULL;
-
-			ret = ShellExecuteEx(&shellinfo);
-			WaitForSingleObject(shellinfo.hProcess, INFINITE);
-			delete buffer;
-
-			if (!ret) {
-				CQ_sendGroupMsg(ac, fromGroup, "链接生成失败,请重试");
+			temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
+			if (!CQtestlibExec(temp, "htmls.exe")) {
+				CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
 				return EVENT_BLOCK;
 			}
 			else {
@@ -573,102 +353,193 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
 				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				Sleep(1000);
+				CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
+				temp = "[CQ:image,file=PDFconvery.jpg]";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 			}
-			break;
-			/*case '3':
-				CQ_sendPrivateMsg(ac, fromQQ, "■█");
-				break;*/
-		default:
-			CQ_sendGroupMsg(ac, fromGroup, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
-			break;
-		}
-	}
-	else {
-		temp = string(msg);
-		if (!(temp.find("https://wenku.baidu.com/view/") != string::npos || temp.find("https://wk.baidu.com/view/") != string::npos || temp.find("https://m.baidu.com/sf_edu_wenku/view/") != string::npos)) {
-			/*CQ_sendGroupMsg(ac, fromGroup, "更多功能，请回复#0查看帮助(英文井号)");*/
-			return EVENT_BLOCK;
-		}
-		CQ_sendGroupMsg(ac, fromGroup,
-			"欢迎使用百度文库下载功能，注意：\n\n"
-			"1.本功能无法下载百度文库中格式为pdf的文件\n"
-			"2.本功能所下载的百度文库文档一律为pdf格式\n"
-			"3.超过300页的文件可能会下载失败\n"
-			"4.生成的下载链接有效期从下载时刻起至当日24：00"
-			"\n请稍等片刻，正在下载文档..."
-		);
-		pos = temp.find("https://");
-		temp = temp.substr(pos) + " " + SAVE_PATH + "//" + qq2word(fromQQ) + " 40 None";
-
-		size = temp.length();
-		buffer = new wchar_t[size + 1];
-		MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-		buffer[size] = 0;
-		//MessageBox(GetDesktopWindow(), buffer, _T("url"), MB_OK);
-		//delete buffer;
-
-		ZeroMemory(&shellinfo, sizeof(shellinfo));
-		shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-		shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-		shellinfo.hwnd = GetDesktopWindow();
-		shellinfo.lpVerb = _T("open");
-		shellinfo.lpFile = _T("BDWKdownload.exe");
-		shellinfo.lpParameters = buffer;
-		shellinfo.lpDirectory = _T(".\\downloader");
-		shellinfo.nShow = SW_HIDE;
-		shellinfo.hInstApp = NULL;
-
-		ret = ShellExecuteEx(&shellinfo);
-		WaitForSingleObject(shellinfo.hProcess, INFINITE);
-		delete buffer;
-
-		if (!ret) {
-			temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
-			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
-			return EVENT_BLOCK;
-		}
-
-
-		CQ_sendGroupMsg(ac, fromGroup, "下载完成，正在为您生成链接,链接二维码将通过私聊二维码发送");
-
-		temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome None";
-		size = temp.length();
-		buffer = new wchar_t[size + 1];
-		MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-		buffer[size] = 0;
-
-		ZeroMemory(&shellinfo, sizeof(shellinfo));
-		shellinfo.cbSize = sizeof(SHELLEXECUTEINFO);
-		shellinfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-		shellinfo.hwnd = GetDesktopWindow();
-		shellinfo.lpVerb = _T("open");
-		shellinfo.lpFile = _T("html.exe");
-		shellinfo.lpParameters = buffer;
-		shellinfo.lpDirectory = _T(".\\downloader");
-		shellinfo.nShow = SW_HIDE;
-		shellinfo.hInstApp = NULL;
-
-		ret = ShellExecuteEx(&shellinfo);
-		WaitForSingleObject(shellinfo.hProcess, INFINITE);
-		delete buffer;
-
-		if (!ret) {
-			CQ_sendGroupMsg(ac, fromGroup, "链接生成失败,请重试");
 			return EVENT_BLOCK;
 		}
 		else {
-			temp = url_base + qq2word(fromQQ);
-			QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-			temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
-			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-			Sleep(1000);
-			CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
-			temp = "[CQ:image,file=PDFconvery.jpg]";
-			CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
-
+			temp = std::string(msg);
+			temp=sql::Private_msg_reply(temp,fromQQ);
+			if (!temp.empty()) {
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				return EVENT_BLOCK;
+			}
+			else CQ_sendPrivateMsg(ac, fromQQ, "我不太懂你的意思！请回复#0查看帮助！！！");
 		}
-
 	}
+	//如果要回复消息，请调酷Q方法发送，并且这里 return EVENT_BLOCK - 截断本条消息，不再继续处理  注意：应用优先级设置为"最高"(10000)时，不得使用本返回值
+	//如果不回复消息，交由之后的应用/过滤器处理，这里 return EVENT_IGNORE - 忽略本条消息
+	return EVENT_IGNORE;
+
+}
+
+
+
+/*
+* Type=2 群消息
+*/
+CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fromGroup, int64_t fromQQ, const char *fromAnonymous, const char *msg, int32_t font) {
+
+	std::string temp;
+	std::string filename;
+
+	QRcode *code = nullptr;
+	int pos;
+	vector<std::string> strs;
+
+	if (sql::Groups_check(fromGroup) && !sql::ban_check(fromQQ)) {
+		if (msg[0] == '#') {
+			switch (msg[1]) {
+			case '0':
+				Sleep(500);
+				CQ_sendGroupMsg(ac, fromGroup, help_msg);
+				return EVENT_BLOCK;
+
+			case '1':
+				Sleep(500);
+				if (strlen(msg) <= 3) break;
+				temp = std::string(msg);
+				temp = temp.substr(3);
+				CQ_sendGroupMsg(ac, fromGroup, "链接二维码将通过私聊发送给您o(*￣▽￣*)o");
+
+				for (map<std::string, std::string>::iterator iter = filmlist.begin(); iter != filmlist.end(); iter++) {
+					if (iter->first.find(temp) != std::string::npos) {
+						CQ_sendPrivateMsg(ac, fromQQ, iter->second.c_str());
+						return EVENT_BLOCK;
+					}
+				}
+				
+				temp = temp + " " + SAVE_PATH + "//" + qq2word(fromQQ);
+				CQtestlibExec(temp, "movie.exe");
+				
+				temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
+				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+
+				return EVENT_BLOCK;
+			case '2':
+				if (strlen(msg) <= 3) break;
+				CQ_sendGroupMsg(ac, fromGroup, "已私聊o((>ω< ))o");
+				CQ_sendPrivateMsg(ac, fromQQ, music_msg);
+
+				temp = std::string(msg);
+				strs = split(temp);
+				temp.clear();
+				while (strs.size() > 1) {
+					temp.append(strs.back());
+					strs.pop_back();
+				}
+				strs.clear();
+				temp = temp + " " + SAVE_PATH + "/" + qq2word(fromQQ) + " \"" + suffix + "\"";
+
+				if (!CQtestlibExec(temp,"music.exe")) {
+					temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+					return EVENT_BLOCK;
+				}
+				CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接,链接二维码将通过私聊发送");
+
+
+
+				temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
+				if (!CQtestlibExec(temp,"htmls.exe")) {
+					CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
+					return EVENT_BLOCK;
+				}
+				else {
+					temp = url_base + qq2word(fromQQ);
+					QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+					temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				}
+				return EVENT_BLOCK;
+			case '3':
+				CQ_sendGroupMsg(ac, fromGroup, "认证注册仅限私聊哦[CQ:emoji,id=128522]");
+				return EVENT_BLOCK;
+			case '4':
+				CQ_sendGroupMsg(ac, fromGroup, "失物招领发布仅限私聊哦[CQ:emoji,id=128522]");
+				return EVENT_BLOCK;
+
+			case '5':
+				if (strlen(msg) < 3) break;
+
+				temp = std::string(msg);
+				strs = split(temp);
+
+				if (strs.size() < 2) {
+					CQ_sendGroupMsg(ac, fromGroup, "您输入的命令格式不正确，请输入#0查看帮助示例");
+					strs.clear();
+					return EVENT_BLOCK;
+				}
+
+				temp = sql::Get_Notice_items(strs[1]);
+				strs.clear();
+				if (temp != "") {
+					CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+					CQ_sendGroupMsg(ac, fromGroup, Notice_help_msg);
+				}
+				else {
+					CQ_sendGroupMsg(ac, fromGroup, "未查找到您输入的相关信息");
+					CQ_sendGroupMsg(ac, fromGroup, "目前已录入的丢失物品关键词:");
+					temp = sql::Get_Notice_keywords();
+					CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+				}
+				return EVENT_BLOCK;
+			default:
+				CQ_sendGroupMsg(ac, fromGroup, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
+				break;
+			}
+		}
+		else if (
+				std::string(msg).find("https://wenku.baidu.com/view/") != std::string::npos || 
+				std::string(msg).find("https://wk.baidu.com/view/") != std::string::npos || 
+				std::string(msg).find("https://m.baidu.com/sf_edu_wenku/view/") != std::string::npos
+			) {
+			temp = std::string(msg);
+			CQ_sendGroupMsg(ac, fromGroup, "私聊啦d=====(￣▽￣*)b");
+			CQ_sendPrivateMsg(ac, fromQQ, baidu_msg);
+			pos = temp.find("https://");
+			temp = temp.substr(pos) + " " + SAVE_PATH + "//" + qq2word(fromQQ) + " 40";
+
+			if (!CQtestlibExec(temp,"BDWKdownload.exe")) {
+				temp = to_string(GetLastError()) + "下载失败，请检查url重试或者联系机器人管理员";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				return EVENT_BLOCK;
+			}
+
+			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接,链接二维码将通过私聊二维码发送");
+
+			temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
+			if (!CQtestlibExec(temp,"htmls.exe")) {
+				CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
+				return EVENT_BLOCK;
+			}
+			else {
+				temp = url_base + qq2word(fromQQ);
+				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				Sleep(1000);
+				CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
+				temp = "[CQ:image,file=PDFconvery.jpg]";
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+			}
+			return EVENT_BLOCK;
+		}
+		else {
+		temp = std::string(msg);
+		temp = sql::Group_msg_reply(temp,fromGroup,fromQQ);
+		if (!temp.empty()) {
+			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+			return EVENT_BLOCK;
+		}
+		}
+	}
+	return EVENT_IGNORE;
 }
 
 
@@ -760,38 +631,17 @@ CQEVENT(int32_t, __eventRequest_AddGroup, 32)(int32_t subType, int32_t sendTime,
 */
 CQEVENT(int32_t, savePath_setting, 0)() {
 	//MessageBoxA(NULL, "这是menuA，在这里载入窗口，或者进行其他工作。", "" ,0);
-    wchar_t *buffer;
-    string temp = SAVE_PATH;
-    size_t size = temp.length();
-    buffer = new wchar_t[size + 1];
-    MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-    buffer[size] = 0;
-    MessageBox(GetDesktopWindow(), buffer, _T("文件保存目录"), MB_OK);
-    delete buffer;
+    MessageBox(GetDesktopWindow(), Ascii2WideByte(SAVE_PATH).c_str(), _T("文件保存目录"), MB_OK);
     return 0;
 }
 
 CQEVENT(int32_t, URL_setting, 0)() {
-    wchar_t *buffer;
-    string temp = url_base;
-    size_t size = temp.length();
-    buffer = new wchar_t[size + 1];
-    MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-    buffer[size] = 0;
-    MessageBox(GetDesktopWindow(), buffer, _T("WEB URL"), MB_OK);
-    delete buffer;
+    MessageBox(GetDesktopWindow(), Ascii2WideByte(url_base).c_str(), _T("WEB URL"), MB_OK);
 	return 0;
 }
 
 CQEVENT(int32_t, suffix_setting, 0)() {
-    wchar_t *buffer;
-    string temp = suffix;
-    size_t size = temp.length();
-    buffer = new wchar_t[size + 1];
-    MultiByteToWideChar(CP_ACP, 0, temp.c_str(), size, buffer, size * sizeof(wchar_t));
-    buffer[size] = 0;
-    MessageBox(GetDesktopWindow(), buffer, _T("WEB URL"), MB_OK);
-    delete buffer;
+    MessageBox(GetDesktopWindow(), Ascii2WideByte(suffix).c_str(), _T("后缀"), MB_OK);
     return 0;
 }
 
@@ -799,8 +649,8 @@ CQEVENT(int32_t, suffix_setting, 0)() {
 CQEVENT(int32_t, about_setting, 0)() {
     MessageBoxA(
         GetDesktopWindow(),
-        "修改如上设置请到酷q目录下的setting.txt中\n"
-        "code by cc 2019.1.20",
+        "修改如上设置请到酷q目录下的setting中\n"
+        "code by cc 2019.4.22",
         "关于", 0);
     return 0;
 }
