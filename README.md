@@ -2,6 +2,7 @@
 ---
 
 >### 酷Q Pro插件
+* 江海大智能QQ机器人插件项目
 
 * Github: [https://github.com/needhourger/cc.yuukisama.CQtest](https://github.com/needhourger/cc.yuukisama.CQtest)
 
@@ -36,6 +37,13 @@
 * ~~也许有生之年我会重构这个东西~~ 真的重构了一下下
 
 >#### 更新
+* 2019.5.14
+    1. 增加#6记录用户消息
+    1. 增加儿童节活动代码
+    1. 增加了高频消息屏蔽
+    1. 部分bug修复
+
+
 * 2019.4.24
     1. 添加某校园信息门户爬取认证
     1. 失物招领平台建立

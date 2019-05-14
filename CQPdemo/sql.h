@@ -336,7 +336,26 @@ namespace sql {
 			sqlite3_close(db);
 			return false;
 		}
+		sqlite3_close(db);
 		return true;
+	}
+
+	void ban_user(int64_t QQ) {
+		sqlite3 *db = NULL;
+		char *ErrMsg = NULL;
+		char sql[SQLLEN] = { 0 };
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			return;
+		}
+
+		sprintf_s(sql, SQLLEN, "insert or replace into Users (QQ_ID,isVIP,isBanned,isRegistered) values (%lld,0,1,0);", QQ);
+		rc = sqlite3_exec(db, sql, NULL, NULL, &ErrMsg);
+		sqlite3_close(db);
+		return;
 	}
 
 	/*数据库失物招领信息表初始化*/

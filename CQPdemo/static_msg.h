@@ -107,7 +107,7 @@ const char groups_sql[] = {
 const char languages_sql[] = {
 	"CREATE TABLE IF NOT EXISTS Languages("
 	"ID INTEGER PRIMARY KEY NOT NULL,"
-	"Keyword TEXT NOT NULL UNIQUE,"
+	"Keyword TEXT NOT NULL,"
 	"Reply TEXT DEFAULT NULL,"
 	"Priority INTEGER NOT NULL DEFAULT 99,"
 	"isON INTEGER DEFAULT 1,"

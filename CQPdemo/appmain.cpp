@@ -31,7 +31,11 @@ std::string url_base;
 std::string suffix;
 
 map<std::string, std::string> filmlist;
-vector<std::string> keywords;
+clock_t preMsg = clock();
+clock_t nowMsg;
+int64_t preQQ;
+short msgCount;
+
 
 /* 
 * 返回应用的ApiVer、Appid，打包后将不会调用
@@ -157,9 +161,20 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
   
     QRcode *code=nullptr;
     long pos;
+	wfstream file;
 	vector<std::string> strs;
 
 	if (!sql::ban_check(fromQQ)) {
+		if (preQQ == fromQQ) {
+			nowMsg = clock();
+			if (difftime(nowMsg, preMsg) < 1500) {
+				preMsg = nowMsg;
+				return EVENT_BLOCK;
+			}
+			else preMsg = nowMsg;
+		}
+		else preQQ = fromQQ;
+
 		if (msg[0] == '#') {
 			switch (msg[1]) {
 			case '0':
@@ -304,6 +319,18 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				}
 				return EVENT_BLOCK;
+
+			case '6':
+				if (strlen(msg) < 3) break;
+				file.open("./6.txt", ios::app);
+				if (file.is_open()) {
+					file << msg << endl;
+					CQ_sendPrivateMsg(ac, fromQQ, "收到~(￣▽￣)~*");
+				}
+				else CQ_sendPrivateMsg(ac, fromQQ, "录入失败惹，请重试啦~");
+				file.close();
+				
+				return EVENT_BLOCK;
 			default:
 				CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
 				break;
@@ -362,12 +389,20 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 		}
 		else {
 			temp = std::string(msg);
+			if (temp == "六一儿童节快乐" && subType == 11) {
+				file.open("./抽奖.txt", ios::app);
+				if (file.is_open()) file << fromQQ << endl;
+				file.close();
+			}
 			temp=sql::Private_msg_reply(temp,fromQQ);
 			if (!temp.empty()) {
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				return EVENT_BLOCK;
 			}
-			else CQ_sendPrivateMsg(ac, fromQQ, "我不太懂你的意思！请回复#0查看帮助！！！");
+			else {
+				CQ_sendPrivateMsg(ac, fromQQ, "我不是很懂你的意思，请发送#0查看帮助!（英文井号）");
+				return EVENT_IGNORE;
+			}
 		}
 	}
 	//如果要回复消息，请调酷Q方法发送，并且这里 return EVENT_BLOCK - 截断本条消息，不再继续处理  注意：应用优先级设置为"最高"(10000)时，不得使用本返回值
@@ -531,12 +566,12 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			return EVENT_BLOCK;
 		}
 		else {
-		temp = std::string(msg);
-		temp = sql::Group_msg_reply(temp,fromGroup,fromQQ);
-		if (!temp.empty()) {
-			CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
-			return EVENT_BLOCK;
-		}
+			temp = std::string(msg);
+			temp = sql::Group_msg_reply(temp,fromGroup,fromQQ);
+			if (!temp.empty()) {
+				CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+				return EVENT_BLOCK;
+			}
 		}
 	}
 	return EVENT_IGNORE;
