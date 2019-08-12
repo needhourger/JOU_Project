@@ -4,8 +4,25 @@
 #include<shellapi.h>
 #include<tchar.h>
 #include<vector>
+#include<cstdlib>
+#include<ctime>
+#pragma comment(lib,"7zra.lib")
 using namespace std;
 #define W 651
+
+#define charset "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_#*%"
+
+
+string generatePass(const string key) {
+	srand((unsigned int)time(0));
+	string ret = key;
+	unsigned short len = rand() % 5 + 10;
+	for (int i = 0; i <= len; i++) {
+		ret.append(1, charset[rand() % sizeof(charset)]);
+	}
+	return ret;
+}
+
 
 string UTF8ToGBK(const char* str)
 {
@@ -59,12 +76,15 @@ void QRTextConvate(string words,string filename) {
     return;
 }
 
-
+string AT(int64_t qq) {
+	return "[CQ:at,qq=" + to_string(qq) + "]";
+}
 
 string qq2word(int64_t qq) {
-	string temp = to_string(qq);
-	for (int i = 0; i < temp.length(); i++) temp[i] = temp[i] * 2 + 1;
-	return temp;
+	/*string temp = to_string(qq);
+	for (int i = 0; i < temp.length(); i++) 
+		temp[i] = temp[i] * 2 + 1;*/
+	return to_string(qq);
 }
 
 
@@ -72,13 +92,12 @@ string qq2word(int64_t qq) {
 vector<std::string> split(std::string str,std::string dim=" ") {
 	vector<std::string> ret;
 	if (str == "") return ret;
-
 	std::string strs = str + dim;
 	size_t pos = strs.find(dim);
 	while (pos != std::string::npos) {
 		string temp = strs.substr(0, pos);
 		ret.push_back(temp);
-		strs = strs.substr(pos + 1, str.size());
+		strs = strs.substr(pos + dim.length(), strs.size());
 		pos = strs.find(dim);
 	}
 	return ret;

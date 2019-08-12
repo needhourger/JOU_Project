@@ -86,6 +86,7 @@
   <ItemGroup>
     <ClInclude Include="appmain.h" />
     <ClInclude Include="cqp.h" />
+    <ClInclude Include="ioapi.h" />
     <ClInclude Include="qrencode.h" />
     <ClInclude Include="sql.h" />
     <ClInclude Include="sqlite\sqlite3.h" />

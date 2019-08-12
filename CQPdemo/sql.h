@@ -13,8 +13,32 @@ const char DATABASE[] = "./CQtestlib/CQtest.db";
 const short SQLLEN = 512;
 
 namespace sql {
+	/*判断是否为VIP用户，是返回True，否返回False*/
+	bool isadmin(int64_t qq) {
+		sqlite3 *db = NULL;
+		sqlite3_stmt *stmt = NULL;
+		const char *zTail = NULL;
+		char sql[SQLLEN] = { 0 };
+		int rc;
+		bool ret = false;
+		
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			return ret;
+		}
 
-	
+		sprintf_s(sql, SQLLEN, "select id from admin where qq=%lld", qq);
+		if (sqlite3_prepare_v2(db, sql, SQLLEN, &stmt, &zTail) == SQLITE_OK) {
+			while (sqlite3_step(stmt) == SQLITE_ROW) {
+				if (sqlite3_column_count(stmt)) ret = true;
+			}
+		}
+		sqlite3_finalize(stmt);
+		sqlite3_close(db);
+		return ret;
+	}
+
 	/*失物招领发布时间检查，可再上传返回True，不可再上传False*/
 	bool uptime_check(int64_t qq) {
 		sqlite3 *db=NULL;
@@ -40,6 +64,7 @@ namespace sql {
 		sqlite3_close(db);
 		return ret;
 	}
+
 
 
 	/*黑名单检查，是黑名单成员返回True，不是返回false*/
@@ -306,6 +331,99 @@ namespace sql {
 		return ret;
 	}
 
+	/*依据资料编号获取资料路径*/
+	std::string Material_Path_Query(const std::string NO) {
+		std::string ret;
+		ret.clear();
+
+		sqlite3 *db = NULL;
+		sqlite3_stmt *stmt = NULL;
+		const char *zTail = NULL;
+		char sql[SQLLEN] = { 0 };
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			return ret;
+		}
+
+		long no = atoi(NO.c_str());
+		sprintf_s(sql, SQLLEN, "select path from material where NO=%ld", no);
+		if (sqlite3_prepare_v2(db, sql, sizeof(sql), &stmt, &zTail) == SQLITE_OK) {
+			while (sqlite3_step(stmt) == SQLITE_ROW) {
+				ret = std::string((const char *)sqlite3_column_text(stmt, 0));
+				ret = UTF_82ASCII(ret);
+				sqlite3_finalize(stmt);
+				sqlite3_close(db);
+				return ret;
+			}
+		}
+		sqlite3_finalize(stmt);
+		sqlite3_close(db);
+		return ret;
+	}
+
+
+	std::string get_Material_record(int64_t qq) {
+		std::string ret;
+		ret.clear();
+
+		sqlite3 *db = NULL;
+		sqlite3_stmt *stmt= NULL;
+		const char *zTail = NULL;
+		char sql[SQLLEN] = { 0 };
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			return ret;
+		}
+
+		sprintf_s(sql, SQLLEN, "select Material,password from Material_record where QQ_belong=%lld", qq);
+		if (sqlite3_prepare_v2(db, sql, sizeof(sql), &stmt, &zTail) == SQLITE_OK) {
+			while (sqlite3_step(stmt) == SQLITE_ROW) {
+				ret.append("压缩包名:" + UTF_82ASCII(std::string((const char *)sqlite3_column_text(stmt, 0))));
+				ret.append("  密码:" + UTF_82ASCII(std::string((const char *)sqlite3_column_text(stmt, 1))));
+				ret.append(1, '\n');
+			}
+		}
+		sqlite3_finalize(stmt);
+		sqlite3_close(db);
+		return ret;
+	}
+
+
+	/*插入压缩包获取记录信息*/
+	bool upload_Material_record(std::string materialName, std::string password, int64_t qq) {
+		sqlite3 *db = NULL;
+		char *ErrMsg = NULL;
+		char sql[SQLLEN] = { 0 };
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			return false;
+		}
+
+		sprintf_s(
+			sql,
+			SQLLEN,
+			"insert into Material_record (Material,password,QQ_belong,upTime) values ('%s','%s','%lld',date());",
+			ASCII2UTF_8(materialName).c_str(), password.c_str(), qq
+		);
+
+		rc = sqlite3_exec(db, sql, NULL, NULL, &ErrMsg);
+		if (rc) {
+			sqlite3_close(db);
+			return false;
+		}
+		sqlite3_close(db);
+		return true;
+	}
+
 	/*
 	* 录入失物招领信息
 	* 参数：物品名称，校区，详情，来源QQ
@@ -339,7 +457,8 @@ namespace sql {
 		sqlite3_close(db);
 		return true;
 	}
-
+	
+	/*拉黑用户*/
 	void ban_user(int64_t QQ) {
 		sqlite3 *db = NULL;
 		char *ErrMsg = NULL;
@@ -354,6 +473,52 @@ namespace sql {
 
 		sprintf_s(sql, SQLLEN, "insert or replace into Users (QQ_ID,isVIP,isBanned,isRegistered) values (%lld,0,1,0);", QQ);
 		rc = sqlite3_exec(db, sql, NULL, NULL, &ErrMsg);
+		sqlite3_close(db);
+		return;
+	}
+
+	/*数据库资料表初始化*/
+	void Material_table_init() {
+		sqlite3 *db = NULL;
+		char *ErrMsg = NULL;
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法连接数据库"), _T("警告"), MB_OK);
+			return;
+		}
+
+		rc = sqlite3_exec(db, material_sql, NULL, NULL, &ErrMsg);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法初始化Matriel表"), _T("警告"), MB_OK);
+			return;
+		}
+		sqlite3_close(db);
+		return;
+	}
+
+	/*压缩密码记录表初始化*/
+	void Materual_record_table_init() {
+		sqlite3 *db = NULL;
+		char *ErrMsg = NULL;
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法连接数据库"), _T("警告"), MB_OK);
+			return;
+		}
+
+		rc = sqlite3_exec(db, material_record_sql, NULL, NULL, &ErrMsg);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法初始化Material_record表"), _T("警告"), MB_OK);
+			return;
+		}
 		sqlite3_close(db);
 		return;
 	}
@@ -447,6 +612,28 @@ namespace sql {
 		if (rc) {
 			sqlite3_close(db);
 			MessageBox(GetDesktopWindow(), _T("无法创建Languages表"), _T("警告"), MB_OK);
+			return;
+		}
+		sqlite3_close(db);
+		return;
+	}
+
+	void admin_init() {
+		sqlite3 *db = NULL;
+		char *ErrMsg = NULL;
+		int rc;
+
+		rc = sqlite3_open(DATABASE, &db);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法链接数据库"), _T("警告"), MB_OK);
+			return;
+		}
+
+		rc = sqlite3_exec(db, admin_sql, NULL, NULL, &ErrMsg);
+		if (rc) {
+			sqlite3_close(db);
+			MessageBox(GetDesktopWindow(), _T("无法创建admin表"), _T("警告"), MB_OK);
 			return;
 		}
 		sqlite3_close(db);

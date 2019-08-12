@@ -52,6 +52,12 @@ const char notice_success_msg[] = {
 	"替所有失主感谢您！（。＾▽＾）"
 };
 
+const char material_notice_msg[] = {
+	"如果您需要的资料但是目录中没有的请联系QQ1227027834获取，感谢您为资料完整性做出的贡献！\n"
+	"[CQ:image.file=Material.jpg]"
+};
+
+
 const char Notice_help_msg[] = {
 	"发送：*+失物招领信息的编号获取发布者联系方式\n"
 	"\t列如：*1\n"
@@ -85,6 +91,24 @@ const char users_sql[] = {
 	");"
 };
 
+
+const char material_sql[] = {
+	"CREATE TABLE IF NOT EXISTS Material("
+	"NO INTEGER PRIMARY KEY NOT NULL,"
+	"path TEXT DEFAULT NULL"
+	");"
+};
+
+const char material_record_sql[] = {
+	"CREATE TABLE IF NOT EXISTS Material_record("
+	"ID INTEGER PRIMARY KEY NOT NULL,"
+	"Material TEXT DEFAULT NULL,"
+	"Password TEXT DEFAULT NULL,"
+	"QQ_belong INTEGER,"
+	"upTime TEXT DEFAULT NULL"
+	");"
+};
+
 const char notices_sql[] = {
 	"CREATE TABLE IF NOT EXISTS Notices("
 	"ID INTEGER PRIMARY KEY NOT NULL,"
@@ -114,5 +138,12 @@ const char languages_sql[] = {
 	"ReplyType INTEGER,"
 	"FOREIGN KEY(ReplyType) REFERENCES Groups(GroupID),"
 	"FOREIGN KEY(ReplyType) REFERENCES Users(QQ_ID)"
+	");"
+};
+
+const char admin_sql[] = {
+	"CREATE TABLE IF NOT EXISTS Admin("
+	"ID INTEGER PRIMARY KEY NOT NULL,"
+	"qq INTEGER NOT NULL UNIQUE"
 	");"
 };

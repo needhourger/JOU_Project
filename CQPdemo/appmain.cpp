@@ -104,6 +104,9 @@ CQEVENT(int32_t, __eventEnable, 0)() {
 	sql::Notice_table_init();
 	sql::Groups_init();
 	sql::language_init();
+	sql::admin_init();
+	sql::Material_table_init();
+	sql::Materual_record_table_init();
 
     fstream csv(".\\film.csv", ios::in);
     if (!csv.is_open()) {
@@ -158,6 +161,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 
     std::string temp;
     std::string filename;
+	std::string pass;
   
     QRcode *code=nullptr;
     long pos;
@@ -200,7 +204,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 
 				temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 
 				return EVENT_BLOCK;
@@ -235,7 +239,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 				else {
 					temp = url_base + qq2word(fromQQ);
 					QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-					temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+					temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				}
 				return EVENT_BLOCK;
@@ -332,7 +336,55 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 				
 				return EVENT_BLOCK;
 			default:
-				CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
+				temp = std::string(msg);
+				strs = split(temp, "#");
+				//debug_win(strs[0]);
+				if (strs[1] == "资料") {
+					if (strs.size() == 3) {
+						pass = generatePass("wanerCollect");
+						//debug_win(pass);
+						filename = sql::Material_Path_Query(strs[2]);
+						if (filename.empty()) {
+							CQ_sendPrivateMsg(ac, fromQQ, "未能找到您需要的资料");
+							Sleep(500);
+							CQ_sendPrivateMsg(ac, fromQQ, material_notice_msg);
+							return EVENT_BLOCK;
+						}
+						CQ_sendPrivateMsg(ac, fromQQ, "正在为您打包资料文件，请稍等...");
+						temp = "a " + SAVE_PATH + "\\" + qq2word(fromQQ) + "\\"+split(filename,"\\\\").back() + ".zip " + filename + " -p" + pass;
+						if (!CQtestlibExec(temp, "7zr.exe")) {
+							temp=to_string(GetLastError())+"未能成功打包资料，请重试或联系管理员";
+							CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+							return EVENT_BLOCK;
+						}
+
+						if (!sql::upload_Material_record(split(filename, "\\\\").back(), pass, fromQQ)) {
+							CQ_sendPrivateMsg(ac, fromQQ, "未能成功记录压缩包密码，请重试或者联系管理员");
+							return EVENT_BLOCK;
+						}
+						temp = "已为您成功打包资料，压缩包提取密码请到群490726290发送“#密码”获取:";
+						CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+						Sleep(200);
+
+						CQ_sendPrivateMsg(ac, fromQQ, "正在为您生成链接,如果超过5秒未收到链接请发送helo002");
+						temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
+						if (!CQtestlibExec(temp, "htmls.exe")) {
+							CQ_sendPrivateMsg(ac, fromQQ, "链接生成失败,请重试");
+							return EVENT_BLOCK;
+						}
+
+						temp = url_base + qq2word(fromQQ);
+						QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
+						temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+						CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+						return EVENT_BLOCK;
+					}
+					else {
+						CQ_sendPrivateMsg(ac, fromQQ, material_notice_msg);
+						return EVENT_BLOCK;
+					}
+				}
+				else CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
 				break;
 			}
 		}
@@ -351,6 +403,18 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 			CQ_sendPrivateMsg(ac, fromQQ, notice_confirm_msg);
 			return EVENT_BLOCK;
 		}
+		else if (msg[0] =='-' && sql::isadmin(fromQQ)) {
+			temp = std::string(msg);
+			strs = split(temp);
+			if (strs[0] == "--send") {
+				temp = strs[1];
+				for (int i = 2; i < strs.size(); i++) {
+					pos = atol(strs[i].c_str());
+					CQ_sendGroupMsg(ac, pos, temp.c_str());
+				}
+			}
+			else return EVENT_IGNORE;
+		}
 		else if (
 			std::string(msg).find("https://wenku.baidu.com/view/") != std::string::npos ||
 			std::string(msg).find("https://wk.baidu.com/view/") != std::string::npos || 
@@ -368,7 +432,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 			}
 
 
-			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接");
+			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接，如果超过5秒未收到链接请发送helo002");
 
 			temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
 			if (!CQtestlibExec(temp, "htmls.exe")) {
@@ -378,7 +442,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 			else {
 				temp = url_base + qq2word(fromQQ);
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				Sleep(1000);
 				CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
@@ -452,7 +516,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				
 				temp = url_base + qq2word(fromQQ) + "/BDPurl.html";
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 
 				return EVENT_BLOCK;
@@ -488,7 +552,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				else {
 					temp = url_base + qq2word(fromQQ);
 					QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-					temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+					temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 					CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				}
 				return EVENT_BLOCK;
@@ -525,6 +589,22 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 				}
 				return EVENT_BLOCK;
 			default:
+				temp = std::string(msg);
+				strs = split(temp, "#");
+				//debug_win(strs[0]);
+				if (strs[1] == "密码" && fromGroup == 490726290) {
+					temp = sql::get_Material_record(fromQQ);
+					if (temp.empty()) {
+						temp = AT(fromQQ) + "未查询到您获取资料的记录";
+						CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+						return EVENT_BLOCK;
+					}
+					else {
+						temp = AT(fromQQ) + "\n" + temp;
+						CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
+						return EVENT_BLOCK;
+					}
+				}
 				CQ_sendGroupMsg(ac, fromGroup, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
 				break;
 			}
@@ -556,7 +636,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			else {
 				temp = url_base + qq2word(fromQQ);
 				QRTextConvate(temp, "../data/image/" + qq2word(fromQQ));
-				temp = "[CQ:image,file=" + qq2word(fromQQ) + "\\QRcode.png]";
+				temp = "[CQ:image,file=" + qq2word(fromQQ) + "/QRcode.png]";
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				Sleep(1000);
 				CQ_sendPrivateMsg(ac, fromQQ, "如果您需要将pdf转换成其他格式可以访问如下网站");
