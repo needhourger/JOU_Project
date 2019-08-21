@@ -384,6 +384,23 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 						return EVENT_BLOCK;
 					}
 				}
+				else if (strs[1] == "课表") {
+					if (sql::register_check(fromQQ)){
+						temp = qq2word(fromQQ) + " ../data/image/"+qq2word(fromQQ);
+						CQ_sendPrivateMsg(ac, fromQQ, "正在获取课程表...");
+						if (!CQtestlibExec(temp, "school_timetable.exe")) {
+							CQ_sendPrivateMsg(ac, fromQQ, "获取课表失败，请重试或者联系管理员");
+							return EVENT_BLOCK;
+						}
+						temp ="[CQ:image,file="+qq2word(fromQQ)+"/school_timetable.jpg]";
+						CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+						
+					}
+					else {
+						CQ_sendPrivateMsg(ac, fromQQ, "您尚未完成注册");
+						return EVENT_BLOCK;
+					}
+				}
 				else CQ_sendPrivateMsg(ac, fromQQ, "未能识别您的指令，请回复#0查看帮助信息(+_+)?");
 				break;
 			}
@@ -432,7 +449,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 			}
 
 
-			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接，如果超过5秒未收到链接请发送helo002");
+			CQ_sendPrivateMsg(ac, fromQQ, "下载完成，正在为您生成链接，如果超过5秒未收到链接请发送help002");
 
 			temp = SAVE_PATH + "//" + qq2word(fromQQ) + " Welcome";
 			if (!CQtestlibExec(temp, "htmls.exe")) {
@@ -453,7 +470,7 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 		}
 		else {
 			temp = std::string(msg);
-			if (temp == "六一儿童节快乐" && subType == 11) {
+			if (temp == "锦鲤" && subType == 11) {
 				file.open("./抽奖.txt", ios::app);
 				if (file.is_open()) file << fromQQ << endl;
 				file.close();
