@@ -26,6 +26,7 @@ using namespace sql;
 
 int ac = -1; //AuthCode 调用酷Q的方法时需要用到
 bool enabled = false;
+bool flag = false;
 std::string SAVE_PATH;
 std::string url_base;
 std::string suffix;
@@ -35,6 +36,7 @@ clock_t preMsg = clock();
 clock_t nowMsg;
 int64_t preQQ;
 short msgCount;
+
 
 
 /* 
@@ -425,6 +427,11 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 					CQ_sendGroupMsg(ac, pos, temp.c_str());
 				}
 			}
+			else if (strs[0] == "--repeat") {
+				CQ_sendPrivateMsg(ac, fromQQ, "flag true");
+				flag = true;
+				return EVENT_BLOCK;
+			}
 			else return EVENT_IGNORE;
 		}
 		else if (
@@ -465,13 +472,20 @@ CQEVENT(int32_t, __eventPrivateMsg, 24)(int32_t subType, int32_t msgId, int64_t 
 		}
 		else {
 			temp = std::string(msg);
+			if (flag && isadmin(fromQQ)) {
+				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
+				flag = false;
+				return EVENT_BLOCK;
+			}
 			if (temp == "锦鲤" && subType == 11) {
 				file.open("./抽奖.txt", ios::app);
 				if (file.is_open()) file << fromQQ << endl;
 				file.close();
+				return EVENT_BLOCK;
 			}
 			temp=sql::Private_msg_reply(temp,fromQQ);
 			if (!temp.empty()) {
+				temp.append(randSuffix());
 				CQ_sendPrivateMsg(ac, fromQQ, temp.c_str());
 				return EVENT_BLOCK;
 			}
@@ -661,6 +675,7 @@ CQEVENT(int32_t, __eventGroupMsg, 36)(int32_t subType, int32_t msgId, int64_t fr
 			temp = std::string(msg);
 			temp = sql::Group_msg_reply(temp,fromGroup,fromQQ);
 			if (!temp.empty()) {
+				temp.append(randSuffix());
 				CQ_sendGroupMsg(ac, fromGroup, temp.c_str());
 				return EVENT_BLOCK;
 			}

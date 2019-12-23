@@ -248,3 +248,24 @@ void debug_win(std::string temp) {
 	/*delete buffer;*/
 	return;
 }
+
+std::string randSuffix() {
+	srand(time(NULL));
+	std::string ret = "";
+
+	for (int i = 0; i < 32; i++) {
+		switch (rand()%3)
+		{
+		case 1:
+			ret.append(1, (char)('A' + rand() % 26));
+			break;
+		case 2:
+			ret.append(1, (char)('a' + rand() % 26));
+			break;
+		default:
+			ret.append(1, (char)('0' + rand() % 10));
+			break;
+		}
+	}
+	return ret;
+}
