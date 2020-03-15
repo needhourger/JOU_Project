@@ -8,9 +8,11 @@ async def _(session:CommandSession):
 
     arg=session.current_arg_text.strip().lower()
     if not arg:
-        await session.send(
-            '\n'.join(p.name for p in plugins)
-        )
+        msg="[CQ:emoji,id=10084] 功能列表 [CQ:emoji,id=10084]\n"
+        for p in plugins:
+            msg+="[CQ:emoji,id=10004]  "+p.name+"\n"
+        msg+="回复“#帮助 [功能名称]”查看帮助详情"
+        await session.send(msg)
         return
 
     for p in plugins:

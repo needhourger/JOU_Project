@@ -42,7 +42,7 @@ async def generate_html(target,headline="机器人の下载站"):
         f.write(html_part1)
         f.write("<h1>{}</h1><br>".format(headline))
         f.write('<a class="link_class" href="./BDPurl.html">电影百度盘链接</a><br><br>')
-        for x in filename:
+        for x in filenames:
             if x!="index.html":
                 f.write('<a class="link_class" href="./{}" download>{}</a>'.format(x,x))
                 f.write('<br>')

@@ -17,19 +17,19 @@ import random
 import string
 import subprocess
 
-__plugin_name__ = '资料'
-__plugin_usage__ = r"""
+__plugin_name__ = '学习资料'
+__plugin_usage__ = """
 获取学习资料
 
-\#资料 [资料编号]
+#资料 [资料编号]
 
 单独回复“资料”查看资料编号列表
 """
 
-@on_command("course_material",aliases=("资料"),permission=permission.PRIVATE_FRIEND)
+@on_command("course_material",aliases=("资料","学习资料"),permission=permission.PRIVATE_FRIEND)
 async def course_material(session:CommandSession):
     material_id=session.get("material_id")
-    qq=session.get("qq",prompt="非法的发送者")
+    qq=session.get("qq")
     filepath=await material_path_query(material_id)
     if not filepath:
         await session.send("未查询到相关资料")
@@ -50,6 +50,7 @@ async def _(session:CommandSession):
     qq=session.ctx.get("user_id",None)
     if not qq:
         session.finish("非法的发送者")
+        return
     args=session.current_arg_text.strip().split()
     if not args:
         session.pause(__plugin_usage__)

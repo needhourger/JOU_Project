@@ -1,5 +1,6 @@
 #-*- coding=utf-8 -*-
 from config import DATABASE_PATH
+from config import GRANDUATE_MESSAGE
 import sqlite3
 
 db=sqlite3.connect(DATABASE_PATH)
@@ -20,6 +21,14 @@ isVIP INTEGER DEFAULT 0,
 isBanned INTEGER DEFAULT 0,
 isRegistered INTEGER DEFAULT 0
 );
+"""
+
+granduate_sql="""
+create table if not exists granduate(
+    user_id integer primary key not null,
+    school_name text default null,
+    major text default null
+)
 """
         
 
@@ -62,8 +71,22 @@ async def group_mag_reply(msg,group_id,user_id):
             return row[1]
 
 async def private_msg_reply(msg,user_id):
-    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=1 or replyType={} and isON=1 order by priority desc".format(users_id))
+    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=1 or replyType={} and isON=1 order by priority desc".format(user_id))
     rows=cursor.fetchall()
     for row in rows:
         if len(row)>=2 and row[0] in msg:
             return row[1]
+
+async def handle_granduate_data(school_name,major,user_id):
+    cursor.execute(granduate_sql)
+    db.commit()
+    ret="为您查询到研友信息如下:\n"
+    cursor.execute("insert or replace into granduate (school_name,major,user_id) values (?,?,?)",(school_name,major,user_id))
+    cursor.execute("select school_name,major,user_id from granduate where school_name=? and user_id!=?",(school_name,user_id))
+    rows=cursor.fetchall()
+    for row in rows:
+        ret+="{} - {}\t{}".format(row[0],row[1],row[2])
+    if ret=="为您查询到研友信息如下:\n":
+        ret="未能查询到同校研友\n"
+    ret+=GRANDUATE_MESSAGE
+    return ret

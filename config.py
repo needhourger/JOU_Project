@@ -16,3 +16,5 @@ HTTP_URL_PRIFX="请复制网址粘贴到浏览器打开http://119删除此内容
 MATERIAL_GROUP=490726290
 LUCK_DRAW_KEYWORDS="锦鲤"
 LUCK_DRAW_FILES="./抽奖.txt"
+PRINTER_MESSAGE="点击链接填写信息免费打印四六级准考证https://wj.qq.com/s2/5606590/dc04/"
+GRANDUATE_MESSAGE="【广告位招租】"
