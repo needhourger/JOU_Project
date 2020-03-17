@@ -94,6 +94,6 @@ async def handle_granduate_data(school_name,major,user_id):
     for row in rows:
         ret+="{} - {}\t{}".format(row[0],row[1],row[2])
     if ret=="为您查询到研友信息如下:\n":
-        ret="未能查询到同校研友\n"
-    ret+=GRANDUATE_MESSAGE
+        ret="未能查询到同校研友，如果有同学通过本平台备份，即可查询到，请您稍后再试\n"
+    ret+="\n"+GRANDUATE_MESSAGE
     return ret
