@@ -12,7 +12,7 @@ __plugin_usage__ = """
 留言参与各式各样的精彩活动
 """
 
-@on_command("leave_message",aliases=("留言"),permission=permission.PRIVATE_FRIEND)
+@on_command("leave_message",aliases=("留言"),permission=permission.PRIVATE_FRIEND,only_to_me=False)
 async def leave_message(session:CommandSession):
     message=session.get("message",prompt="请输入你的留言内容")
     with open("./留言.txt","a+",encoding="utf-8") as f:
@@ -23,4 +23,6 @@ async def leave_message(session:CommandSession):
 
 @leave_message.args_parser
 async def _(session:CommandSession):
-    session.state["message"]=session.current_arg_text.strip()
+    msg=session.current_arg_text.strip()
+    if msg:
+        session.state["message"]=session.current_arg_text.strip()

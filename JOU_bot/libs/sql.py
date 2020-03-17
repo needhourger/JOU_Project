@@ -55,16 +55,23 @@ async def material_path_query(material_id):
     """.format(material_id))
     return cursor.fetchone()
 
+async def record_material_password(user_id,filename,password):
+    cursor.execute("insert into material_record (material,password,qq_belong,uptime) values (?,?,?,datetime())",(filename,password,user_id))
+    db.commit()
+    return
+
 async def get_material_record(qq):
     ret=""
     cursor.execute("select material,password from material_record where qq_belong={}".format(qq))
     res=cursor.fetchall()
     for row in res:
         ret+="压缩包名:{} 密码：{}\n".format(row[0],row[1])
+    if not ret:
+        return "未查询过到您有尝试获取过学习资料"
     return ret
 
 async def group_mag_reply(msg,group_id,user_id):
-    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=2 or replyType={} and isON=1 order py Priority desc".format(group_id))
+    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=2 or replyType={} and isON=1 order by Priority desc".format(group_id))
     rows=cursor.fetchall()
     for row in rows:
         if len(row)>=2 and row[0] in msg:

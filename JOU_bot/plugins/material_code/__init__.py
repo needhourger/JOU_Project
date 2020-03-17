@@ -8,13 +8,13 @@ from nonebot import CommandSession
 from nonebot import permission
 
 __plugin_name__ = '资料密码'
-__plugin_usage__ = r"""
+__plugin_usage__ = """
 获取下载的学习资料的密码
 
-\#密码
+#密码
 """
 
-@on_command("material_code",aliases=("密码"),permission=permission.GROUP|permission.PRIVATE_FRIEND)
+@on_command("material_code",aliases=("密码"),permission=permission.GROUP|permission.PRIVATE_FRIEND,only_to_me=False)
 async def material_code(session:CommandSession):
     user_id=session.get("user_id",prompt="非法的发送者")
     ret=await get_material_record(user_id)

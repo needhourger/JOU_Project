@@ -3,6 +3,7 @@ from config import IMAGE_SAVE_PATH
 from config import CHROME_BINARY
 from config import WEBDRIVE_PATH
 from config import DEBUG
+from config import ARGS_SEP
 from JOU_bot.libs.sql import *
 
 import nonebot
@@ -25,14 +26,17 @@ __plugin_usage__="""
 如果您已经完成身份认证则可以直接发送“#课表”
 """
 
-@on_command("timetable",aliases=("课表","课程表","查询课表","查询课程表"),permission=permission.PRIVATE_FRIEND)
+@on_command("timetable",aliases=("课表","课程表","查询课表","查询课程表"),permission=permission.PRIVATE_FRIEND,only_to_me=False)
 async def timetable(session:CommandSession):
     username=session.get("username",prompt="请输入学号信息")
     password=session.get("password",prompt="请输入密码：默认身份证后八位")
     qq=session.get("qq")
+    await session.send("尝试获取课程表中···")
     ret=await handle(username,password,qq)
-    if not session.bot.can_send_image():
+    flag=await session.bot.can_send_image()
+    if not flag:
         await session.send("无法发送图片")
+        return
     await session.send(ret)
 
 @timetable.args_parser
@@ -40,18 +44,23 @@ async def _(session:CommandSession):
     qq=session.ctx.get("user_id",None)
     if not qq:
         session.finish("非法发送者")
-    session.state["qq"]=qq
-    args=session.current_arg_text.strip().split()
-    if not args:
+    session.state["qq"]=str(qq)
+    args=session.current_arg_text.strip().split(ARGS_SEP)
+    await session.send(session.current_arg_text)
+    if len(args)==0:
         res=await getUserPass(qq)
         if res:
             session.state["username"],session.state["password"]=res
+            return
         else:
             await session.send("您未完成认证，没有记录您的账号密码\n")
             return
-    elif len(args)==2:
+    elif len(args)==1:
+        session.state["username"]=args[0]
+    elif len(args)>=2:
         session.state["username"]=args[0]
         session.state["password"]=args[1]
+
 
 async def handle(username:str,password:str,qq:str)->str:
     url=r"https://cas.hhit.edu.cn/lyuapServer/login?service=http://58.192.29.7/login_cas.aspx"
@@ -86,4 +95,4 @@ async def handle(username:str,password:str,qq:str)->str:
         os.makedirs(savepath)
     chrome.save_screenshot(savepath+"/school_timetable.jpg")
     chrome.quit()
-    return "[cq:image,file={}]".format(qq+"/school_timetable.jpg")
+    return "[CQ:image,file={}]".format(qq+"/school_timetable.jpg")

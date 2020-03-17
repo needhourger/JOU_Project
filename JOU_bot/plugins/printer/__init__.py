@@ -1,5 +1,6 @@
 #-*- coding:utf-8 -*-
 from config import PRINTER_MESSAGE
+from config import ARGS_SEP
 
 from nonebot import on_command
 from nonebot import CommandSession
@@ -14,7 +15,7 @@ __plugin_usage__ = """
 填写资料免费打印四六级准考证，送上门。
 """
 
-@on_command("printer",aliases=("打印","准考证打印","四六级准考证打印"),permission=permission.PRIVATE_FRIEND)
+@on_command("printer",aliases=("打印","准考证打印","四六级准考证打印"),permission=permission.PRIVATE_FRIEND,only_to_me=False)
 async def printer(session:CommandSession):
     user_id=session.get("user_id")
     qq=session.get("qq",prompt="请输入您的QQ号")
@@ -30,6 +31,6 @@ async def _(session:CommandSession):
         await session.send("非法用户")
         return
     session.state["user_id"]=str(user_id)
-    args=session.current_arg_text.strip().split()
+    args=session.current_arg_text.strip().split(ARGS_SEP)
     if len(args)>=1:
         session.state["qq"]=args[0]

@@ -13,7 +13,7 @@ __plugin_usage__ = """
 回复相应关键词即可触发(●'◡'●)
 """
 
-@on_natural_language(permission=permission.GROUP)
+@on_natural_language(permission=permission.GROUP,only_to_me=False)
 async def group(session:NLPSession):
     msg=session.msg_text.strip()
     group_id=session.ctx.get("group_id",None)
@@ -26,7 +26,7 @@ async def group(session:NLPSession):
     res=res+await get_tail()
     await session.send(res)
 
-@on_natural_language(permission=permission.PRIVATE)
+@on_natural_language(permission=permission.PRIVATE,only_to_me=False)
 async def private(session:NLPSession):
     msg=session.msg_text.strip()
     user_id=session.ctx.get("user_id",None)
