@@ -92,7 +92,7 @@ async def handle_granduate_data(school_name,major,user_id):
     cursor.execute("select school_name,major,user_id from granduate where school_name=? and user_id!=?",(school_name,user_id))
     rows=cursor.fetchall()
     for row in rows:
-        ret+="{} - {}\t{}".format(row[0],row[1],row[2])
+        ret+="{} - {}\t{}".format(row[0],row[1],row[2])+"\n"
     if ret=="为您查询到研友信息如下:\n":
         ret="未能查询到同校研友，如果有同学通过本平台备份，即可查询到，请您稍后再试\n"
     ret+="\n"+GRANDUATE_MESSAGE
