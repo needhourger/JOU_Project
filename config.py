@@ -12,7 +12,7 @@ SESSION_CANCEL_EXPRESSION = (
     '好吧，那就不打扰啦',
     '那先不打扰小主人啦',
 )
-CAN_SEND_PIC=False
+CAN_SEND_PIC=True
 
 IMAGE_SAVE_PATH="./data/image/"
 DATABASE_PATH="./CQtest.db"
