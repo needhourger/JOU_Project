@@ -4,12 +4,14 @@ from config import CHROME_BINARY
 from config import WEBDRIVE_PATH
 from config import DEBUG
 from config import ARGS_SEP
+from config import CAN_SEND_PIC
 from JOU_bot.libs.sql import *
 
 import nonebot
 from nonebot import on_command
 from nonebot import CommandSession
 from nonebot import permission
+from nonebot.command.argfilter.controllers import handle_cancellation
 
 import os
 from selenium import webdriver
@@ -33,8 +35,7 @@ async def timetable(session:CommandSession):
     qq=session.get("qq")
     await session.send("尝试获取课程表中···")
     ret=await handle(username,password,qq)
-    flag=await session.bot.can_send_image()
-    if not flag:
+    if not CAN_SEND_PIC:
         await session.send("无法发送图片")
         return
     await session.send(ret)

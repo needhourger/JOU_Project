@@ -13,32 +13,19 @@ __plugin_usage__ = """
 回复相应关键词即可触发(●'◡'●)
 """
 
-@on_natural_language(permission=permission.GROUP,only_to_me=False)
+@on_natural_language(permission=permission.EVERYBODY,only_to_me=False)
 async def group(session:NLPSession):
     msg=session.msg_text.strip()
     group_id=session.ctx.get("group_id",None)
     user_id=session.ctx.get("user_id",None)
-    if not (group_id and user_id):
+    if (not group_id) and user_id:
+        res=await private_msg_reply(msg,user_id)
+    elif group_id and user_id:
+        res=await group_mag_reply(msg,group_id,user_id)
+    else:
         return
-    res=await group_mag_reply(msg,group_id,user_id)
     if not res:
         return
-    res=res+await get_tail()
-    await session.send(res)
-
-@on_natural_language(permission=permission.PRIVATE,only_to_me=False)
-async def private(session:NLPSession):
-    msg=session.msg_text.strip()
-    user_id=session.ctx.get("user_id",None)
-    flag=await permission.check_permission(session.bot,session.ctx,permission.PRIVATE_FRIEND)
-    if user_id and flag and msg==LUCK_DRAW_KEYWORDS:
-        with open(LUCK_DRAW_FILES,"a+",encoding="utf-8") as f:
-            f.write("{}\n".format(user_id))
-            f.close()
-        await session.send("参与抽奖成功！")
-    res=await private_msg_reply(msg,user_id)
-    if not res:
-        return
-    res=res+await get_tail()
+    res=res[0]+await get_tail()
     await session.send(res)
 

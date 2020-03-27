@@ -8,6 +8,7 @@ from config import HTTP_URL_PRIFX
 from config import MATERIAL_GROUP
 from config import IMAGE_SAVE_PATH
 from config import ARGS_SEP
+from config import CAN_SEND_PIC
 
 from nonebot import on_command
 from nonebot import CommandSession
@@ -42,8 +43,7 @@ async def course_material(session:CommandSession):
     await generate_QR_code(HTTP_URL_PRIFX+qq,os.path.join(IMAGE_SAVE_PATH,qq))
     await generate_html(os.path.join(HTTP_ROOT,qq))
     await session.send("文件已打包完成，压缩文件密码请到群{}发送“#密码”获取".format(MATERIAL_GROUP))
-    flag=await session.bot.can_send_image()
-    if not flag:
+    if not CAN_SEND_PIC:
         await session.send("无法发送图片")
         return
     await session.send("[CQ:image,file={}]".format(qq+"/QRcode.png"))

@@ -30,12 +30,14 @@ create table if not exists granduate(
     major text default null
 )
 """
-        
+
+async def database_init():
+    cursor.execute(users_sql)
+    cursor.execute(granduate_sql)
+    db.commit()
 
 async def saveUserInfo(username:str,password:str,qq:int)->str:
     info={}
-    cursor.execute(users_sql)
-    db.commit()
     cursor.execute("select isBanned,isRegistered from users where Stu_id={} limit 1;".format(username))
     row=cursor.fetchone()
     if row is None or row==(0,0):
@@ -71,22 +73,14 @@ async def get_material_record(qq):
     return ret
 
 async def group_mag_reply(msg,group_id,user_id):
-    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=2 or replyType={} and isON=1 order by Priority desc".format(group_id))
-    rows=cursor.fetchall()
-    for row in rows:
-        if len(row)>=2 and row[0] in msg:
-            return row[1]
+    cursor.execute("select reply from languages where keyword=? and (replyType=0 or replyType=2 or replyType=?) and isON=1 order by Priority desc",(msg,group_id))
+    return cursor.fetchone()
 
 async def private_msg_reply(msg,user_id):
-    cursor.execute("select keyword,reply from languages where replyType=0 or replyType=1 or replyType={} and isON=1 order by priority desc".format(user_id))
-    rows=cursor.fetchall()
-    for row in rows:
-        if len(row)>=2 and row[0] in msg:
-            return row[1]
+    cursor.execute("select reply from languages where keyword=? and (replyType=0 or replyType=1 or replyType=?) and isON=1 order by priority desc",(msg,user_id))
+    return cursor.fetchone()
 
 async def handle_granduate_data(school_name,major,user_id):
-    cursor.execute(granduate_sql)
-    db.commit()
     ret="为您查询到研友信息如下:\n"
     cursor.execute("insert or replace into granduate (school_name,major,user_id) values (?,?,?)",(school_name,major,user_id))
     cursor.execute("select school_name,major,user_id from granduate where school_name=? and user_id!=?",(school_name,user_id))
