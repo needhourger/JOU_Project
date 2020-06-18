@@ -90,30 +90,66 @@ def processFile(path: str, config: dict):
     }
 
     sId = 0
-    sName = ""
+    sName = path.split("\\")[-1].replace(".xlsx","").replace(".xls","")
 
-    df = pd.read_excel(path, header=None, nrows=1)
+    df = pd.read_excel(path, header=None, nrows=2)
+    data = ""
     for row in df.iterrows():
-        data = row[1].get(0)
-        data = data.split()
-        for i in data:
-            if "学号" in i:
-                sId = i.replace("学号：", "")
-            if "姓名" in i:
-                sName = i.replace("姓名：", "")
-        break
+        for i in row[1]:
+            data += " "+str(i)
+    # print(data)
+    skiprows = [0, 1]
+    if "性质" in data:
+        skiprows = [0, 1]
+    else:
+        # skiprows = [0, 1, 2, 3]
+        return None
+    data = data.split()
+    for i in data:
+        if "学号" in i:
+            sId = i.replace("学号：", "")
+        # if "姓名" in i:
+        #     sName = i.replace("姓名：", "")
 
     dfs = []
+    # print(skiprows)
     for i in range(3):
-        df = pd.read_excel(
-            path,
-            header=None,
-            skiprows=[0,1],
-            names=["课程名称", "性质", "学分", "总评", "补考", "重修", "绩点"],
-            usecols=range(i*7, (i+1)*7)
-        )
-        dfs.append(df)
-
+        if skiprows==[0,1]:
+            df = pd.read_excel(
+                path,
+                header=None,
+                skiprows=skiprows,
+                names=["课程名称", "性质", "学分", "总评", "补考", "重修", "绩点"],
+                usecols=range(i*7, (i+1)*7)
+            )
+            dfs.append(df)
+        elif skiprows==[0,1,2,3] and i==0:
+            df = pd.read_excel(
+                path,
+                header=None,
+                skiprows=skiprows,
+                names=["课程名称","", "性质", "学分", "总评", "补考", "重修", "绩点"],
+                usecols=range(0, 8)
+            )
+            dfs.append(df)
+        elif skiprows==[0,1,2,3] and i==1:
+            df = pd.read_excel(
+                path,
+                header=None,
+                skiprows=skiprows,
+                names=["课程名称","", "性质", "学分", "总评", "补考", "重修", "绩点"],
+                usecols=range(8, 16)
+            )
+            dfs.append(df)
+        elif skiprows==[0,1,2,3] and i==2:
+            df = pd.read_excel(
+                path,
+                header=None,
+                skiprows=skiprows,
+                names=["课程名称", "性质", "学分", "总评", "补考", "重修", "绩点"],
+                usecols=range(16, 23)
+            )
+            dfs.append(df)
     rCourseSet = set(config["keys"])
     rCourseCredit = 0
     mCourseCreditGPA = 0
@@ -133,9 +169,11 @@ def processFile(path: str, config: dict):
             # print(row)
             ctype = row[1].get("性质", None)
             course = row[1].get("课程名称", "")
+            # print(course)
             if type(course) == str:
                 course = course.strip()
             credit = row[1].get("学分", 0)
+            # print(credit)
             GPA = row[1].get("绩点")
 
             if not cFlag:
@@ -229,4 +267,6 @@ def processFile(path: str, config: dict):
 
     # 输出至文件
     oDf = pd.DataFrame(data=[[v for v in output.values()]])
-    oDf.to_csv(config["outputPath"],mode="a",header=False,index=False,encoding="GB2312")
+    oDf.to_csv(config["outputPath"], mode="a",
+               header=False, index=False, encoding="utf-8")
+    return path
