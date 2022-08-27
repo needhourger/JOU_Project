@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static',path='css/bootstrap.css') }}">
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <h1>Dashboard</h1>
+        </div>
+        <div class="card" >
+            <form class="row container-fluid" action="/dashboard/addKeyReply" method="post" enctype="multipart/form-data">
+                <div class="col-6">
+                    <div class="row mb-3">
+                        <label for="keyword" class="col-sm-2 col-form-label">关键词</label>
+                        <div class="col-sm-10"><input type="text" class="form-control" name="keyword" value="" required></div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="reply" class="form-label">回复内容</label>
+                        <textarea class="form-control ml-2" name="reply" rows="10" required></textarea>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="row mb-3">
+                        <label for="target" class="col-sm-4 col-form-label">回复对象</label>
+                        <div class="col-sm-8"><input type="number" class="form-control" name="target" value="0"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="priority" class="col-sm-4 col-form-label">优先级</label>
+                        <div class="col-sm-8"><input type="number" class="form-control" name="priority" value="100"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="formFile" class="form-label">文件上传</label>
+                        <input class="form-control multipart" type="file" name="formfile">
+                    </div>
+                    <div class="row mb-3">
+                        <button class="btn col" type="reset">清除</button>
+                        <button class="btn btn-primary col" type="submit">确定</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="row">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>关键词</th>
+                        <th>回复</th>
+                        <th>对象</th>
+                        <th>优先级</th>
+                        <th>启用</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody> {% for kr in krs %} <tr>
+                        <td>{{ kr.kid }}</td>
+                        <td>{{ kr.keyword }}</td>
+                        <td>{{ kr.reply }}</td>
+                        <td>{{ kr.target }}</td>
+                        <td>{{ kr.priority }}</td>
+                        <td>
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" {% if kr.enabled %}checked{% endif %}>
+                            </div>
+                        </td>
+                        <td>{{ kr.created }}</td>
+                        <td><a type="button" class="btn btn-danger" href="/dashboard/deleteKeyReply?kid={{ kr.kid }}">删除</a></td>
+                    </tr> {% endfor %} </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+<script src="{{ url_for('static',path='js/bootstrap.js') }}"></script>
+
+</html>
