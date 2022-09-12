@@ -4,6 +4,7 @@ from nonebot.rule import to_me
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import MessageEvent, GroupMessageEvent,Message,MessageSegment
+from libs import getSaying
 
 from src.database import getReply
 
@@ -28,7 +29,8 @@ async def kr_handle(bot:Bot, event:MessageEvent|GroupMessageEvent):
     print(reply)
     if not reply:
         return
-    retMessage = Message(reply+bot.config.bot_tail)
+    saying = await getSaying()
+    retMessage = Message(reply+"\n{}\n".format(saying)+bot.config.bot_tail)
     await kr.finish(retMessage)
 
 
