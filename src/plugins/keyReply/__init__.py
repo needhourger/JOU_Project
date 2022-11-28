@@ -4,7 +4,8 @@ from nonebot.rule import to_me
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import MessageEvent, GroupMessageEvent,Message,MessageSegment
-from libs import getSaying
+
+from src.libs import getSaying
 
 from src.database import getReply
 

@@ -4,9 +4,9 @@ from nonebot.drivers import ReverseDriver
 from fastapi import FastAPI, File,Request,Form, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse,RedirectResponse
+from fastapi.responses import RedirectResponse
 
-from src.database import addReply, admin_login, deleteKeyReply, getAllReplys
+from src.database import addReply, admin_login, deleteKeyReply, getAllReplys, getAllPrints
 
 
 driver = get_driver()
@@ -53,3 +53,8 @@ async def dashboard_delete_key_reply(kid=None):
     if kid:
        await deleteKeyReply(kid)
     return RedirectResponse("/dashboard",status_code=303)
+
+@app.get("/dashboard/printer")
+async def dashboard_printer(request:Request):
+    prints = await getAllPrints()
+    return templates.TemplateResponse("printer.html",{"request":request,"prints":prints})

@@ -23,3 +23,12 @@ class User(Model):
 
     class Meta:
         database = db
+
+class Prints(Model):
+    uid = PrimaryKeyField()
+    url = TextField()
+    name = TextField()
+    updated = DateTimeField(default = datetime.today())
+
+    class Meta:
+        database = db

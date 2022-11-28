@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prints</title>
+    <link rel="stylesheet" href="{{ url_for('static',path='css/bootstrap.css') }}">
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title">Prints</h1>
+                <button class="btn btn-primary" onclick="download();">下载全部</button>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>用户ID</th>
+                            <th>文件名</th>
+                            <th>URL</th>
+                            <th>记录时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="content"> {% for print in prints %} 
+                        <tr>
+                            <td class="uid">{{ print.uid }}</td>
+                            <td>{{ print.name }}</td>
+                            <td class="urls">{{ print.url }}</td>
+                            <td>{{ print.updated }}</td>
+                        </tr>
+                         {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="{{ url_for('static',path='js/bootstrap.js') }}"></script>
+<script src="{{ url_for('static',path='js/axios.min.js') }}"></script>
+<script>
+    var axios = require('axios').default;
+    function download() {
+        console.log("click")
+        urls = document.getElementsByClassName("urls")
+        ids = document.getElementsByClassName("uid")
+        for (let i = 0; i < urls.length; i++) {
+            let url = urls[i].innerText
+            let fileName = ids[i].innerText+".pdf"
+            console.log(url)
+            axios.get(url, { responseType: 'blob' }).then(res => {
+                const blob = new Blob([res.data])
+                let a = document.createElement('a')
+                a.href = URL.createObjectURL(blob)
+                a.download = fileName
+                a.click()
+            })
+        }
+    }
+
+</script>
+
+</html>

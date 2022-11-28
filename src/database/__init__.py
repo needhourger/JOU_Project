@@ -1,8 +1,8 @@
-from .models import KeyReply, User,db
+from .models import KeyReply,User,Prints,db
 
 def database_init():
     db.connect()
-    db.create_tables([KeyReply,User])
+    db.create_tables([KeyReply,User,Prints])
     # test = KeyReply(keyword="测试",reply="测试结果")
     # test.save()
     # admin = User(username="test",password="test")
@@ -35,3 +35,7 @@ async def addReply(keyword,reply,target,priority):
 
 async def deleteKeyReply(kid):
     KeyReply.delete().where(KeyReply.kid==kid).execute()
+
+async def getAllPrints():
+    prints = Prints.select().order_by(Prints.uid)
+    return prints
