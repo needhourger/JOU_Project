@@ -16,5 +16,3 @@ def getSaying():
     except Exception as e:
         print(e)
     return ret
-
-print(getSaying())

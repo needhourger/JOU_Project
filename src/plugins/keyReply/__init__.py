@@ -32,11 +32,4 @@ async def kr_handle(bot:Bot, event:MessageEvent|GroupMessageEvent):
     saying = await getSaying()
     retMessage = Message(reply+"\n{}\n".format(saying)+bot.config.bot_tail)
     await kr.finish(retMessage)
-
-
-krAdmin = on_command("问答",priority=90,rule=to_me(),permission=SUPERUSER,block=True)
-
-@krAdmin.handle()
-async def krAdmin_handle():
-    await krAdmin.finish("admin")
     
